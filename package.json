@@ -1,0 +1,15 @@
+{
+  "name": "livre-compagnon",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Application web compagnon d'un livre (MERN) : question du jour, progression, administration",
+  "scripts": {
+    "install:all": "npm --prefix server install && npm --prefix client install",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "seed": "npm --prefix server run seed",
+    "create-admin": "npm --prefix server run create-admin",
+    "test": "npm --prefix server test && npm --prefix client run test:smoke",
+    "build": "npm --prefix client run build"
+  }
+}
