@@ -15,6 +15,9 @@ import RegisterPage from './pages/RegisterPage.jsx';
 import ResultPage from './pages/ResultPage.jsx';
 import SpacePage from './pages/SpacePage.jsx';
 import AdminAnswers from './pages/admin/AdminAnswers.jsx';
+import AdminBookForm from './pages/admin/AdminBookForm.jsx';
+import AdminBookQr from './pages/admin/AdminBookQr.jsx';
+import AdminBooks from './pages/admin/AdminBooks.jsx';
 import AdminDashboard from './pages/admin/AdminDashboard.jsx';
 import AdminLoginPage from './pages/admin/AdminLoginPage.jsx';
 import AdminQuestionForm from './pages/admin/AdminQuestionForm.jsx';
@@ -28,6 +31,10 @@ export default function App() {
       <Route element={<AdminRoute />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
+          <Route path="livres" element={<AdminBooks />} />
+          <Route path="livres/nouveau" element={<AdminBookForm />} />
+          <Route path="livres/:id/modifier" element={<AdminBookForm />} />
+          <Route path="livres/:id/qr" element={<AdminBookQr />} />
           <Route path="questions" element={<AdminQuestions />} />
           <Route path="questions/nouvelle" element={<AdminQuestionForm />} />
           <Route path="questions/:id/modifier" element={<AdminQuestionForm />} />

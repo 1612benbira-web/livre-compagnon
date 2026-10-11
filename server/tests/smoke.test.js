@@ -109,6 +109,17 @@ test('routes /admin/* sans authentification → 401', async () => {
   }
 });
 
+test('QR code d\'un livre sans authentification → 401', async () => {
+  assert.equal((await fetch(base + `/books/${'a'.repeat(24)}/qr`)).status, 401);
+});
+
+test('image de couverture : envoi sans authentification → 401, identifiant invalide → 400', async () => {
+  const put = await fetch(base + `/books/${'a'.repeat(24)}/cover`, { method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: Buffer.from([1, 2, 3]) });
+  assert.equal(put.status, 401);
+  assert.equal((await fetch(base + '/books/pas-un-id/cover')).status, 400);
+  assert.equal((await fetch(base + `/books/${'a'.repeat(24)}/cover`, { method: 'DELETE' })).status, 401);
+});
+
 test('profil, mot de passe et suppression de compte sans authentification → 401', async () => {
   const send = (method, path) =>
     fetch(base + path, { method, headers: { 'Content-Type': 'application/json' }, body: '{}' });

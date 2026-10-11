@@ -45,6 +45,7 @@ function client() {
     post: (p, b) => call('POST', p, b),
     put: (p, b) => call('PUT', p, b),
     patch: (p, b) => call('PATCH', p, b),
+    cookie: () => cookie,
     call,
     del: (p) => call('DELETE', p),
   };
@@ -304,5 +305,65 @@ test('suppression de compte : mot de passe requis, données supprimées', { skip
   assert.equal(ok.status, 200);
   const { Answer } = await import('../src/models/Answer.js');
   assert.equal(await Answer.countDocuments(), 0);
+});
+
+test('administration : QR code d\'un livre (JSON, PNG, SVG) et accès réservé', { skip }, async () => {
+  const id = ctx.book._id.toString();
+  const json = await admin.get(`/books/${id}/qr`);
+  assert.equal(json.status, 200);
+  assert.equal(json.body.data.url, 'http://localhost:5173/livre/livre-test');
+  assert.equal(json.body.data.https, false); // CLIENT_URL de test en http
+  assert.match(json.body.data.svg, /<svg/);
+
+  const png = await fetch(`${base}/books/${id}/qr?format=png`, { headers: { Cookie: admin.cookie() } });
+  assert.equal(png.status, 200);
+  assert.equal(png.headers.get('content-type'), 'image/png');
+  assert.match(png.headers.get('content-disposition'), /qr-livre-test\.png/);
+  const bytes = new Uint8Array(await png.arrayBuffer());
+  assert.deepEqual([...bytes.slice(0, 4)], [0x89, 0x50, 0x4e, 0x47]);
+
+  assert.equal((await admin.get(`/books/${id}/qr?format=gif`)).status, 400);
+  assert.equal((await client().get(`/books/${id}/qr`)).status, 401);
+});
+
+test('administration : création d\'un livre, slug en double refusé (409)', { skip }, async () => {
+  const body = { title: 'Second livre', slug: 'second-livre', isPublished: true };
+  assert.equal((await admin.post('/books', body)).status, 201);
+  const dup = await admin.post('/books', body);
+  assert.equal(dup.status, 409);
+  assert.match(dup.body.message, /slug/);
+});
+
+test('image de couverture : import, lecture publique, refus des faux fichiers, suppression', { skip }, async () => {
+  const { qrPng } = await import('../src/services/qr.service.js');
+  const png = await qrPng('https://exemple.com/livre/x'); // un vrai PNG pour le test
+  const id = ctx.book._id.toString();
+  const send = (body, type = 'image/png', cookie = admin.cookie()) =>
+    fetch(`${base}/books/${id}/cover`, { method: 'PUT', headers: { 'Content-Type': type, Cookie: cookie }, body });
+
+  assert.equal((await send(png, 'image/png', reader2.cookie())).status, 403); // un lecteur ne peut pas importer
+  assert.equal((await send(Buffer.from('<svg><script>alert(1)</script></svg>'))).status, 400); // faux PNG
+  assert.equal((await send(Buffer.alloc(3 * 1024 * 1024, 1))).status, 413); // trop lourd
+
+  const ok = await send(png);
+  assert.equal(ok.status, 200);
+  assert.ok((await ok.json()).data.book.coverUploadedAt);
+
+  const pub = await fetch(`${base}/books/${id}/cover`); // lecture publique, sans cookie
+  assert.equal(pub.status, 200);
+  assert.equal(pub.headers.get('content-type'), 'image/png');
+  assert.equal(pub.headers.get('cross-origin-resource-policy'), 'cross-origin');
+  assert.equal((await pub.arrayBuffer()).byteLength, png.length);
+
+  const list = await client().get('/books'); // la liste ne contient jamais les octets de l'image
+  assert.ok(list.body.data.books.every((b) => !('coverData' in b)));
+
+  const { Book } = await import('../src/models/Book.js');
+  await Book.updateOne({ _id: id }, { isPublished: false });
+  assert.equal((await fetch(`${base}/books/${id}/cover`)).status, 404); // livre non publié : invisible au public
+  await Book.updateOne({ _id: id }, { isPublished: true });
+
+  assert.equal((await admin.del(`/books/${id}/cover`)).status, 200);
+  assert.equal((await fetch(`${base}/books/${id}/cover`)).status, 404);
 });
 

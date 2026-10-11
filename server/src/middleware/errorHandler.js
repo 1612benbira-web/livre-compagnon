@@ -11,7 +11,7 @@ export const errorHandler = (err, _req, res, _next) => {
 
   if (err.code === 11000) {
     status = 409;
-    message = 'Cette ressource existe déjà.';
+    message = err.keyPattern?.slug ? 'Ce slug est déjà utilisé par un autre livre.' : 'Cette ressource existe déjà.';
   } else if (err.name === 'ValidationError') {
     status = 400;
     message = 'Données invalides.';

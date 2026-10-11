@@ -1,9 +1,10 @@
-import { HelpCircle, LayoutDashboard, ListChecks, LogOut, Users } from 'lucide-react';
+import { BookOpen, HelpCircle, LayoutDashboard, ListChecks, LogOut, Users } from 'lucide-react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 
 const items = [
   { to: '/admin', label: 'Tableau de bord', icon: LayoutDashboard, end: true },
+  { to: '/admin/livres', label: 'Livres', icon: BookOpen },
   { to: '/admin/questions', label: 'Questions', icon: HelpCircle },
   { to: '/admin/utilisateurs', label: 'Utilisateurs', icon: Users },
   { to: '/admin/reponses', label: 'Réponses', icon: ListChecks },

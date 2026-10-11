@@ -44,3 +44,22 @@ export const questionFormSchema = z.object({
   status: z.enum(['draft', 'published', 'archived']),
   publicationDate: z.string(),
 });
+
+export const bookFormSchema = z.object({
+  title: z.string().trim().min(2, 'Au moins 2 caractères.').max(120, '120 caractères maximum.'),
+  slug: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(1, 'Le slug est obligatoire.')
+    .max(80, '80 caractères maximum.')
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Minuscules, chiffres et tirets uniquement (pas d’espace ni d’accent).'),
+  description: z.string().trim().max(2000, '2000 caractères maximum.'),
+  author: z.string().trim().max(120, '120 caractères maximum.'),
+  coverImage: z
+    .string()
+    .trim()
+    .max(500, '500 caractères maximum.')
+    .refine((v) => v === '' || v.startsWith('/') || v.startsWith('https://'), 'Un chemin commençant par / ou une URL https.'),
+  isPublished: z.boolean(),
+});

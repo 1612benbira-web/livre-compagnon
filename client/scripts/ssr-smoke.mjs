@@ -31,6 +31,27 @@ try {
   check('questionFormSchema accepte et convertit correctAnswer en nombre', parsed.success && parsed.data.correctAnswer === 2);
   check('questionFormSchema refuse une proposition vide', !s.questionFormSchema.safeParse({ ...q, answers: ['a', '', 'c', 'd'] }).success);
 
+  // Formulaire de livre (création) rendu directement, hors garde d'administration
+  const { BookForm } = await vite.ssrLoadModule('/src/pages/admin/AdminBookForm.jsx');
+  const formHtml = renderToString(React.createElement(StaticRouter, { location: '/admin/livres/nouveau' }, React.createElement(BookForm, { book: null })));
+  check('formulaire de livre : champs titre, slug et publication', formHtml.includes('id="title"') && formHtml.includes('id="slug"') && formHtml.includes('Créer le livre et son QR code'));
+  const { slugify } = await vite.ssrLoadModule('/src/utils/slugify.js');
+  check('slugify : « Mon Été Magique ! » → mon-ete-magique', slugify('Mon Été Magique !') === 'mon-ete-magique');
+  const book = { title: 'Mon livre', slug: 'mon-livre', description: '', author: '', coverImage: '/images/c.jpg', isPublished: true };
+  check('bookFormSchema accepte un livre valide', s.bookFormSchema.safeParse(book).success);
+  check('bookFormSchema refuse un slug avec espace/accent', !s.bookFormSchema.safeParse({ ...book, slug: 'mon livre é' }).success);
+  check('bookFormSchema refuse une image en http', !s.bookFormSchema.safeParse({ ...book, coverImage: 'http://x.y/a.jpg' }).success);
+
+  const cv = await vite.ssrLoadModule('/src/utils/cover.js');
+  const f1 = cv.fitWithin(4000, 3000), f2 = cv.fitWithin(800, 1000), f3 = cv.fitWithin(1000, 4000);
+  check('fitWithin réduit sans déformer (4000x3000 → 1200x900)', f1.width === 1200 && f1.height === 900);
+  check('fitWithin n’agrandit jamais (800x1000 inchangé)', f2.width === 800 && f2.height === 1000);
+  check('fitWithin gère les images très hautes (1000x4000 → 300x1200)', f3.width === 300 && f3.height === 1200);
+  check('coverSrc : image importée → adresse de l’API versionnée', /\/books\/abc\/cover\?v=\d+$/.test(cv.coverSrc({ _id: 'abc', coverUploadedAt: '2026-10-11T00:00:00Z', coverImage: '/x.jpg' })));
+  check('coverSrc : sans import → adresse saisie', cv.coverSrc({ _id: 'abc', coverImage: '/x.jpg' }) === '/x.jpg');
+  check('coverSrc : rien → chaîne vide', cv.coverSrc({ _id: 'abc' }) === '');
+  check('formulaire de livre : champ d’import d’image', formHtml.includes('type="file"') && formHtml.includes('image/png,image/jpeg,image/webp'));
+
   const { zodResolver } = await import('@hookform/resolvers/zod');
   const res = await zodResolver(s.loginSchema)({ email: 'pas-un-email', password: '' }, undefined, { fields: {}, shouldUseNativeValidation: false });
   check('zodResolver renvoie des erreurs par champ', !!res.errors.email && !!res.errors.password);

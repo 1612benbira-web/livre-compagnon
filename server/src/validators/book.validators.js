@@ -22,6 +22,8 @@ const fields = {
   isPublished: z.boolean(),
 };
 
+export const qrQuery = z.object({ format: z.enum(['json', 'png', 'svg']).default('json') }).strict();
+
 export const createBookSchema = z
   .object({
     title: fields.title,

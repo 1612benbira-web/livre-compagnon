@@ -21,6 +21,8 @@ export const env = {
   clientUrl: process.env.CLIENT_URL,
   timezone: process.env.APP_TIMEZONE || 'Africa/Dakar',
   // lax (même site ou proxy /api), none (frontend et API sur des domaines différents, HTTPS obligatoire)
+  // Base des adresses encodées dans les QR codes (défaut : CLIENT_URL). Domaine définitif en production.
+  publicBaseUrl: (process.env.PUBLIC_BASE_URL || process.env.CLIENT_URL).replace(/\/+$/, ''),
   authRateLimit: Number(process.env.AUTH_RATE_LIMIT) || 10, // tentatives par 15 minutes et par IP
   cookieSameSite: ['lax', 'strict', 'none'].includes(process.env.COOKIE_SAMESITE) ? process.env.COOKIE_SAMESITE : 'lax',
 };

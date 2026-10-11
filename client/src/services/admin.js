@@ -13,3 +13,14 @@ export const adminService = {
   updateQuestion: (id, body) => unwrap(api.put(`/questions/${id}`, body)),
   deleteQuestion: (id) => unwrap(api.delete(`/questions/${id}`)),
 };
+
+// Livres et QR codes
+adminService.book = (id) => unwrap(api.get(`/books/${id}`));
+adminService.createBook = (body) => unwrap(api.post('/books', body));
+adminService.updateBook = (id, body) => unwrap(api.put(`/books/${id}`, body));
+adminService.deleteBook = (id) => unwrap(api.delete(`/books/${id}`));
+adminService.bookQr = (id) => unwrap(api.get(`/books/${id}/qr`));
+adminService.downloadQr = (id, format) => api.get(`/books/${id}/qr`, { params: { format }, responseType: 'blob' });
+adminService.uploadCover = (id, blob) =>
+  unwrap(api.put(`/books/${id}/cover`, blob, { headers: { 'Content-Type': blob.type } }));
+adminService.deleteCover = (id) => unwrap(api.delete(`/books/${id}/cover`));

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import Button from '../../components/common/Button.jsx';
 import Card from '../../components/common/Card.jsx';
 import { Alert, ErrorMessage, Spinner } from '../../components/common/Feedback.jsx';
@@ -95,7 +95,7 @@ export default function AdminQuestionForm() {
   if (books.loading || existing.loading) return <Spinner />;
   if (books.error) return <ErrorMessage message={books.error} onRetry={books.reload} />;
   if (existing.error) return <ErrorMessage message={existing.error} onRetry={existing.reload} />;
-  if (!books.data.books.length) return <Alert>Crée d’abord un livre (script de seed ou API) avant d’ajouter des questions.</Alert>;
+  if (!books.data.books.length) return <Alert>Crée d’abord un livre avant d’ajouter des questions : <Link to="/admin/livres/nouveau" className="underline">créer un livre</Link>.</Alert>;
 
   return (
     <div className="space-y-5">

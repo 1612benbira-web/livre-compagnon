@@ -6,12 +6,14 @@ import Card from '../components/common/Card.jsx';
 import { EmptyState, ErrorMessage, Spinner } from '../components/common/Feedback.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useFetch } from '../hooks/useFetch.js';
+import { coverSrc } from '../utils/cover.js';
 import { bookService } from '../services/content.js';
 
 export function BookCover({ book, className = '' }) {
   const [failed, setFailed] = useState(false);
-  if (book?.coverImage && !failed) {
-    return <img src={book.coverImage} alt={`Couverture du livre ${book.title}`} onError={() => setFailed(true)} className={`rounded-3xl object-cover shadow-lg ${className}`} />;
+  const src = coverSrc(book);
+  if (src && !failed) {
+    return <img src={src} alt={`Couverture du livre ${book.title}`} onError={() => setFailed(true)} className={`rounded-3xl object-cover shadow-lg ${className}`} />;
   }
   return (
     <div className={`flex items-center justify-center rounded-3xl bg-gradient-to-br from-brand-500 to-mint-600 text-white shadow-lg ${className}`} role="img" aria-label="Illustration de livre">

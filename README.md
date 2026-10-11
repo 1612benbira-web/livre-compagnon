@@ -7,7 +7,7 @@ Application web qui prolonge un livre pour enfants : le lecteur scanne un **QR c
 ## Fonctionnalités
 
 **Lecteur** : accueil et présentation du livre sans compte · question du jour · correction par le serveur · explication · inscription / connexion / déconnexion · espace personnel · progression · historique paginé · profil (prénom, mot de passe) · suppression du compte.
-**Administrateur** : tableau de bord (chiffres issus de la base) · CRUD des questions · publier / dépublier / planifier · liste des utilisateurs · réponses filtrables (lecteur, question, dates, résultat).
+**Administrateur** : gestion des **livres avec import de l'image de couverture et QR code généré automatiquement** · tableau de bord (chiffres issus de la base) · CRUD des questions · publier / dépublier / planifier · liste des utilisateurs · réponses filtrables (lecteur, question, dates, résultat).
 
 ## Stack
 
@@ -60,6 +60,7 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 | `CLIENT_URL` | origine exacte du frontend (CORS + contrôle de l'en-tête `Origin`) |
 | `APP_TIMEZONE` | fuseau de référence de la question du jour (défaut `Africa/Dakar`) |
 | `COOKIE_SAMESITE` | `lax` (défaut) ou `none` si frontend et API sont sur des domaines différents |
+| `PUBLIC_BASE_URL` | adresse publique encodée dans les QR codes (défaut : `CLIENT_URL`) |
 | `AUTH_RATE_LIMIT` | tentatives d'authentification / 15 min / IP (défaut 10) |
 
 Frontend : `VITE_API_URL` (jamais de secret : visible dans le navigateur).
@@ -78,6 +79,8 @@ ADMIN_EMAIL=admin@exemple.com ADMIN_FIRST_NAME=Admin ADMIN_PASSWORD='MotDePasse1
 # Windows (PowerShell)
 $env:ADMIN_EMAIL="admin@exemple.com"; $env:ADMIN_PASSWORD="MotDePasse123"; npm run create-admin
 ```
+
+Si le compte existe déjà, il est promu administrateur **sans changer son mot de passe** ; pour le réinitialiser, ajouter `ADMIN_RESET_PASSWORD=1` (PowerShell : `$env:ADMIN_RESET_PASSWORD="1"`).
 
 L'inscription publique ne peut jamais produire un compte administrateur.
 
@@ -108,18 +111,25 @@ npm run build                # client/dist
 
 ## QR code
 
-Le QR code doit encoder une URL **HTTPS stable**, par exemple `https://ton-domaine.com/livre/livre-demo` (slug du livre).
+Chaque livre a son QR code, **généré automatiquement** dans l'administration : `/admin/livres` → « Nouveau livre » (le QR code s'affiche dès la création) ou bouton « QR code » sur un livre existant. On y télécharge un **SVG** (à donner à l'imprimeur) et un **PNG**, et on copie le lien.
 
-```bash
-cd server && npm run qr -- https://ton-domaine.com/livre/livre-demo qr-livre.png
-```
+- Le QR code encode `PUBLIC_BASE_URL` (ou `CLIENT_URL`) + `/livre/<slug>`, par exemple `https://ton-domaine.com/livre/livre-1`. Rien n'est stocké : le même slug et le même domaine donnent toujours le même QR code.
+- **Ne change jamais le slug ni le domaine d'un livre déjà imprimé** (l'interface demande une confirmation avant de modifier un slug). Choisis un slug neutre (`livre-1`).
+- En développement l'adresse est en `http://localhost…` : l'interface avertit que ce QR code ne doit pas être imprimé. En production, l'adresse doit être en HTTPS.
+- Alternative en ligne de commande : `cd server && npm run qr -- https://ton-domaine.com/livre/livre-1 qr-livre.png`.
 
-Génère un PNG haute résolution et un SVG. Le générer une seule fois : le contenu ne change pas.
+## Image de couverture
+
+Dans `/admin/livres` → « Nouveau livre » (ou « Modifier »), l'administrateur importe un fichier PNG, JPEG ou WebP, avec aperçu. Le navigateur le **réduit automatiquement** (1200 px maximum, JPEG) avant l'envoi : une photo de téléphone de plusieurs Mo devient quelques centaines de Ko. Le champ « adresse d'une image » reste possible, mais l'image importée est prioritaire.
+
+- L'image est **stockée dans MongoDB** (et non sur le disque) : les hébergeurs gratuits comme Render ont un disque éphémère qui efface les fichiers à chaque redémarrage. Elle est servie par `GET /api/books/:id/cover` (livres publiés uniquement, cache long, adresse versionnée).
+- Le serveur vérifie le **vrai format par les octets** (PNG, JPEG, WebP ; pas de SVG, qui peut contenir du script) et limite à 2 Mo.
+- Compte tenu du plafond de 512 Mo du palier gratuit d'Atlas, quelques couvertures de quelques centaines de Ko ne posent aucun problème.
 
 ## Déploiement (à effectuer et tester par toi)
 
 1. **MongoDB Atlas** : créer un cluster, un utilisateur de base, autoriser l'IP du backend, copier l'URI.
-2. **Backend (Render ou équivalent Node)** : racine `server`, build `npm install`, démarrage `npm start`. Variables : `NODE_ENV=production`, `MONGODB_URI`, `JWT_SECRET`, `CLIENT_URL` (URL HTTPS du frontend), `APP_TIMEZONE`. Vérifier `GET /api/health`. Créer l'administrateur depuis un shell relié à la base de production avec `npm run create-admin`. Ne pas lancer `seed` en production.
+2. **Backend (Render ou équivalent Node)** : racine `server`, build `npm install`, démarrage `npm start`. Variables : `NODE_ENV=production`, `MONGODB_URI`, `JWT_SECRET`, `CLIENT_URL` (URL HTTPS du frontend), `APP_TIMEZONE`. Vérifier `GET /api/health`. Créer l'administrateur depuis un shell relié à la base de production avec `npm run create-admin`, puis créer le livre dans `/admin/livres` (son QR code est généré automatiquement). Ne pas lancer `seed` en production.
 3. **Frontend (Vercel ou Netlify)** : racine `client`, build `npm run build`, dossier `dist`.
    - **Option recommandée (même site, cookies simples)** : dans `client/vercel.json`, remplacer l'URL du `rewrite` `/api` par celle du backend, et définir `VITE_API_URL=/api`. `COOKIE_SAMESITE=lax`.
    - Option domaines séparés : `VITE_API_URL=https://api.exemple.com/api`, `COOKIE_SAMESITE=none` (HTTPS obligatoire) et `CLIENT_URL` exact. Certains navigateurs bloquent les cookies tiers : le rewrite est plus fiable.
@@ -135,10 +145,12 @@ Préfixe `/api`. Réponses `{ success, data, message }` ou `{ success: false, me
 |---|---|
 | Santé | `GET /health` |
 | Auth | `POST /auth/register` · `POST /auth/login` · `POST /auth/logout` · `GET /auth/me` · `PATCH /auth/profile` · `PUT /auth/password` · `DELETE /auth/account` |
-| Livres | `GET /books` · `GET /books/:id` (id ou slug) · `POST/PUT/DELETE` (admin) |
+| Livres | `GET /books` · `GET /books/:id` (id ou slug) · `POST/PUT/DELETE` (admin) · `GET /books/:id/cover` (image) · `PUT/DELETE /books/:id/cover` (admin) |
 | Questions | `GET /questions` · `GET /questions/today` · `GET /questions/:id` · `POST/PUT/DELETE` (admin) |
 | Réponses | `POST /answers` · `GET /answers/history` · `GET /answers/progress` · `GET /answers/:id` |
 | Admin | `GET /admin/dashboard` · `GET /admin/users` · `GET /admin/answers` |
+
+`GET /books/:id/qr` (admin) renvoie le QR code en JSON, ou en fichier avec `?format=png` ou `?format=svg`.
 
 Une collection Postman est fournie (`livre-compagnon.postman_collection.json`) ; Postman conserve le cookie de session après la connexion.
 
@@ -164,8 +176,9 @@ Données minimales (prénom, email, mot de passe haché, réponses). Pas de date
 
 ## Limites connues du MVP
 
+- Une seule image de couverture par livre ; pas de recadrage dans l'interface (le format portrait 3:4 est conseillé).
 - Questions à choix unique uniquement (la structure prévoit `type`).
-- Un seul livre mis en avant sur l'accueil (le premier livre publié) ; pas d'interface d'administration des livres (API disponible).
+- Un seul livre mis en avant sur l'accueil (le premier livre publié) ; les autres livres sont accessibles par leur adresse `/livre/<slug>` (et leur QR code).
 - Pas de réinitialisation de mot de passe par email, pas de vérification d'email.
 - Le jeton JWT n'est pas révocable avant expiration (déconnexion = suppression du cookie).
 - Filtres de l'écran « Réponses » : 50 premiers lecteurs et questions dans les listes déroulantes.
