@@ -10,7 +10,9 @@ import NotFoundPage from './pages/NotFoundPage.jsx';
 import PrivacyPage from './pages/PrivacyPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import ProgressPage from './pages/ProgressPage.jsx';
+import QuestionByIdPage from './pages/QuestionByIdPage.jsx';
 import QuestionPage from './pages/QuestionPage.jsx';
+import QuestionsPage from './pages/QuestionsPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 import ResultPage from './pages/ResultPage.jsx';
 import SpacePage from './pages/SpacePage.jsx';
@@ -47,6 +49,8 @@ export default function App() {
         <Route index element={<HomePage />} />
         <Route path="livre/:id" element={<BookPage />} />
         <Route path="question-du-jour" element={<QuestionPage />} />
+        <Route path="questions" element={<QuestionsPage />} />
+        <Route path="questions/:id" element={<QuestionByIdPage />} />
         <Route path="connexion" element={<LoginPage />} />
         <Route path="inscription" element={<RegisterPage />} />
         <Route path="confidentialite" element={<PrivacyPage />} />

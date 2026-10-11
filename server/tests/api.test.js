@@ -224,6 +224,16 @@ test('question du jour après réponse : alreadyAnswered et answerId', { skip },
   assert.equal(r.body.data.answerId, firstAnswerId);
 });
 
+test('liste des questions : alreadyAnswered et answerId pour un lecteur connecté', { skip }, async () => {
+  const r = await reader.get('/questions?scope=public');
+  assert.equal(r.status, 200);
+  const byText = Object.fromEntries(r.body.data.questions.map((q) => [q.question, q]));
+  assert.equal(byText['Question du jour ?'].alreadyAnswered, true);
+  assert.equal(byText['Question du jour ?'].answerId, firstAnswerId);
+  assert.equal(byText["Question d'hier ?"].alreadyAnswered, true);
+  assert.equal('correctAnswer' in byText['Question du jour ?'], false);
+});
+
 test('administration : CRUD des questions et verrouillage après réponses', { skip }, async () => {
   assert.equal((await admin.post('/auth/login', { email: 'admin@test.local', password: 'AdminPass1' })).status, 200);
 
@@ -367,3 +377,17 @@ test('image de couverture : import, lecture publique, refus des faux fichiers, s
   assert.equal((await fetch(`${base}/books/${id}/cover`)).status, 404);
 });
 
+test('administrateur : ?scope=public renvoie la vue lecteur (sans bonne réponse, avec id)', { skip }, async () => {
+  const list = await admin.get('/questions?scope=public');
+  assert.equal(list.status, 200);
+  assert.ok(list.body.data.questions.length > 0);
+  for (const q of list.body.data.questions) {
+    assert.equal('correctAnswer' in q, false);
+    assert.ok(q.id);
+  }
+  const one = await admin.get(`/questions/${ctx.qYesterday._id}?scope=public`);
+  assert.equal(one.status, 200);
+  assert.equal('correctAnswer' in one.body.data.question, false);
+  const full = await admin.get(`/questions/${ctx.qYesterday._id}`); // sans scope : vue administrateur
+  assert.equal(full.body.data.question.correctAnswer, 2);
+});

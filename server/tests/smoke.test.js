@@ -84,6 +84,10 @@ test('GET /questions : paramètre inconnu (filtre Mongo injecté) → 400', asyn
   assert.equal(res.status, 400);
 });
 
+test('GET /questions : scope inconnu → 400', async () => {
+  assert.equal((await fetch(base + '/questions?scope=tout')).status, 400);
+});
+
 test('GET /questions/:id avec un identifiant invalide → 400', async () => {
   assert.equal((await fetch(base + '/questions/pas-un-id')).status, 400);
 });

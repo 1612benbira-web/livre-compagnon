@@ -22,6 +22,7 @@ export default function Layout() {
     <>
       <NavLink to="/" end className={linkClass} onClick={close}>Accueil</NavLink>
       <NavLink to="/question-du-jour" className={linkClass} onClick={close}>Question du jour</NavLink>
+      <NavLink to="/questions" end className={linkClass} onClick={close}>Questions</NavLink>
       {user ? (
         <>
           <NavLink to="/progression" className={linkClass} onClick={close}>Progression</NavLink>

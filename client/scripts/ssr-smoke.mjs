@@ -13,7 +13,7 @@ try {
   const { default: App } = await vite.ssrLoadModule('/src/App.jsx');
   const { AuthProvider } = await vite.ssrLoadModule('/src/context/AuthContext.jsx');
 
-  for (const path of ['/', '/connexion', '/inscription', '/confidentialite', '/question-du-jour', '/espace', '/admin', '/admin/connexion', '/page-inexistante']) {
+  for (const path of ['/', '/connexion', '/inscription', '/confidentialite', '/question-du-jour', '/questions', '/questions/abc', '/espace', '/admin', '/admin/connexion', '/page-inexistante']) {
     try {
       const html = renderToString(React.createElement(StaticRouter, { location: path }, React.createElement(AuthProvider, null, React.createElement(App))));
       check(`rendu ${path} (${html.length} octets)`, html.length > 100);
@@ -51,6 +51,17 @@ try {
   check('coverSrc : sans import → adresse saisie', cv.coverSrc({ _id: 'abc', coverImage: '/x.jpg' }) === '/x.jpg');
   check('coverSrc : rien → chaîne vide', cv.coverSrc({ _id: 'abc' }) === '');
   check('formulaire de livre : champ d’import d’image', formHtml.includes('type="file"') && formHtml.includes('image/png,image/jpeg,image/webp'));
+
+  // Carte de question rendue directement (états « à faire » et « déjà répondue »)
+  const { default: QuestionCard } = await vite.ssrLoadModule('/src/components/questions/QuestionCard.jsx');
+  const sample = { id: '1', question: 'Quelle est la capitale du Sénégal ?', answers: ['Thiès', 'Dakar', 'Saint-Louis', 'Kaolack'] };
+  const wrap = (props) => renderToString(React.createElement(StaticRouter, { location: '/questions/1' }, React.createElement(AuthProvider, null, React.createElement(QuestionCard, props))));
+  const todo = wrap({ question: sample, alreadyAnswered: false });
+  check('QuestionCard à faire : 4 propositions et bouton Valider', (todo.match(/type="radio"/g) || []).length === 4 && todo.includes('Valider ma réponse') && !todo.includes('Déjà répondue'));
+  const done = wrap({ question: sample, alreadyAnswered: true, answerId: 'xyz' });
+  check('QuestionCard répondue : badge et lien vers le résultat', done.includes('Déjà répondue') && done.includes('/resultat/xyz') && !done.includes('Valider ma réponse'));
+  const { questionService } = await vite.ssrLoadModule('/src/services/content.js');
+  check('questionService.list et get existent', typeof questionService.list === 'function' && typeof questionService.get === 'function');
 
   const { zodResolver } = await import('@hookform/resolvers/zod');
   const res = await zodResolver(s.loginSchema)({ email: 'pas-un-email', password: '' }, undefined, { fields: {}, shouldUseNativeValidation: false });

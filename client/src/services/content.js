@@ -7,6 +7,8 @@ export const bookService = {
 
 export const questionService = {
   today: (book) => unwrap(api.get('/questions/today', { params: book ? { book } : {} })),
+  list: (page = 1, limit = 10) => unwrap(api.get('/questions', { params: { page, limit, scope: 'public' } })),
+  get: (id) => unwrap(api.get(`/questions/${id}`, { params: { scope: 'public' } })),
 };
 
 export const answerService = {

@@ -6,7 +6,7 @@ Application web qui prolonge un livre pour enfants : le lecteur scanne un **QR c
 
 ## Fonctionnalités
 
-**Lecteur** : accueil et présentation du livre sans compte · question du jour · correction par le serveur · explication · inscription / connexion / déconnexion · espace personnel · progression · historique paginé · profil (prénom, mot de passe) · suppression du compte.
+**Lecteur** : accueil et présentation du livre sans compte · question du jour · page « Toutes les questions » (rattrapage des questions disponibles non faites) · correction par le serveur · explication · inscription / connexion / déconnexion · espace personnel · progression · historique paginé · profil (prénom, mot de passe) · suppression du compte.
 **Administrateur** : gestion des **livres avec import de l'image de couverture et QR code généré automatiquement** · tableau de bord (chiffres issus de la base) · CRUD des questions · publier / dépublier / planifier · liste des utilisateurs · réponses filtrables (lecteur, question, dates, résultat).
 
 ## Stack
@@ -158,6 +158,7 @@ Une collection Postman est fournie (`livre-compagnon.postman_collection.json`) ;
 
 - **Correction côté serveur** ; `correctAnswer` et l'explication ne sont renvoyés qu'**après** l'enregistrement de la tentative. Le client ne peut pas imposer `isCorrect` (champ refusé).
 - **Question du jour** : la question publiée datée d'aujourd'hui (fuseau `APP_TIMEZONE`, pas l'horloge du navigateur). Repli : la dernière question publiée dont la date est passée (`isFallback: true`). Même date et même livre → même question pour tous.
+- La page **Question du jour** affiche une seule question par jour ; **Toutes les questions** (`/questions`) liste toutes les questions disponibles (y compris celles des jours précédents ou plusieurs questions le même jour) pour les faire ou revoir le résultat. Le paramètre `scope=public` fait renvoyer à un administrateur la même vue qu'à un lecteur.
 - Une question est **disponible** si elle est publiée et si sa date est atteinte. Publiée sans date → date du jour.
 - **Tentative unique** par utilisateur et par question (index unique + 409).
 - **Taux de réussite** = bonnes réponses / réponses données (0 % sans réponse). **Progression** = réponses données / questions disponibles (distinct du taux de réussite). **Jours actifs** = jours distincts (fuseau de référence) avec au moins une réponse.

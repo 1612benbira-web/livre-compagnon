@@ -58,7 +58,8 @@ export default function ResultPage() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
         <Button to="/progression">Voir ma progression</Button>
-        <Button variant="secondary" to="/">Retour à l’accueil</Button>
+        <Button variant="secondary" to="/questions">Autres questions</Button>
+        <Button variant="ghost" to="/">Retour à l’accueil</Button>
       </div>
     </div>
   );

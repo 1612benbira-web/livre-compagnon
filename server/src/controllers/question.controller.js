@@ -23,8 +23,8 @@ async function answerCounts(ids) {
 const LOCKED_FIELDS = ['book', 'answers', 'correctAnswer'];
 
 export const listQuestions = asyncHandler(async (req, res) => {
-  const { page, limit, status, book } = req.validated.query;
-  const admin = isAdmin(req);
+  const { page, limit, status, book, scope } = req.validated.query;
+  const admin = isAdmin(req) && scope !== 'public';
   // Les filtres sont construits côté serveur : jamais de filtre Mongo fourni par le client
   const filter = admin ? {} : availableFilter();
   if (admin && status) filter.status = status;
@@ -38,17 +38,21 @@ export const listQuestions = asyncHandler(async (req, res) => {
       .limit(limit),
   ]);
 
-  let answeredIds = new Set();
+  let answeredMap = new Map(); // id de question → id de la réponse de l'utilisateur
   if (req.user && docs.length) {
     const answers = await Answer.find({ user: req.user._id, question: { $in: docs.map((d) => d._id) } }, 'question');
-    answeredIds = new Set(answers.map((a) => a.question.toString()));
+    answeredMap = new Map(answers.map((a) => [a.question.toString(), a._id]));
   }
 
   const counts = admin ? await answerCounts(docs.map((d) => d._id)) : null;
   const questions = docs.map((q) =>
     admin
       ? { ...q.toJSON(), answerCount: counts.get(q._id.toString()) ?? 0 }
-      : { ...q.toPublic(), alreadyAnswered: answeredIds.has(q._id.toString()) }
+      : {
+          ...q.toPublic(),
+          alreadyAnswered: answeredMap.has(q._id.toString()),
+          answerId: answeredMap.get(q._id.toString()) ?? null,
+        }
   );
   return ok(res, { questions, pagination: paginationMeta(page, limit, total) });
 });
@@ -77,7 +81,7 @@ export const getTodayQuestion = asyncHandler(async (req, res) => {
 export const getQuestion = asyncHandler(async (req, res) => {
   const question = await Question.findById(req.params.id);
   if (!question) throw new ApiError(404, 'Question introuvable.');
-  if (isAdmin(req)) {
+  if (isAdmin(req) && req.validated?.query?.scope !== 'public') {
     const answerCount = await Answer.countDocuments({ question: question._id });
     return ok(res, { question: { ...question.toJSON(), answerCount } });
   }
