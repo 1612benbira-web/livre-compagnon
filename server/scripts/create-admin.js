@@ -34,6 +34,7 @@ if (existing) {
   let message = `Compte existant promu administrateur : ${email}.`;
   if (process.env.ADMIN_RESET_PASSWORD === '1') {
     existing.passwordHash = await bcrypt.hash(password, 12);
+    existing.tokenVersion = (existing.tokenVersion ?? 0) + 1; // ferme les sessions ouvertes avec l'ancien mot de passe
     message += ' Mot de passe RÉINITIALISÉ avec ADMIN_PASSWORD.';
   } else {
     message += ' Mot de passe INCHANGÉ (ADMIN_PASSWORD ignoré). Pour le réinitialiser : ADMIN_RESET_PASSWORD=1.';

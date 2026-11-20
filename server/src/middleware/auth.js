@@ -1,7 +1,7 @@
 import { User } from '../models/User.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { COOKIE_NAME, verifyToken } from '../services/token.service.js';
+import { COOKIE_NAME, isRevoked, verifyToken } from '../services/token.service.js';
 
 export const requireAuth = asyncHandler(async (req, _res, next) => {
   const token = req.cookies?.[COOKIE_NAME];
@@ -14,7 +14,7 @@ export const requireAuth = asyncHandler(async (req, _res, next) => {
   }
   // Le rôle vient toujours de la base, jamais uniquement du jeton
   const user = await User.findById(payload.sub);
-  if (!user) throw new ApiError(401, 'Session invalide ou expirée.');
+  if (!user || isRevoked(payload, user)) throw new ApiError(401, 'Session invalide ou expirée.');
   req.user = user;
   next();
 });
@@ -31,7 +31,7 @@ export const optionalAuth = asyncHandler(async (req, _res, next) => {
   try {
     const payload = verifyToken(token);
     const user = await User.findById(payload.sub);
-    if (user) req.user = user;
+    if (user && !isRevoked(payload, user)) req.user = user;
   } catch {
     // jeton invalide : on traite la requête comme celle d'un visiteur
   }

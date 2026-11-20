@@ -24,5 +24,8 @@ export const env = {
   // Base des adresses encodées dans les QR codes (défaut : CLIENT_URL). Domaine définitif en production.
   publicBaseUrl: (process.env.PUBLIC_BASE_URL || process.env.CLIENT_URL).replace(/\/+$/, ''),
   authRateLimit: Number(process.env.AUTH_RATE_LIMIT) || 10, // tentatives par 15 minutes et par IP
+  // Envoi d'emails (mot de passe oublié) via Resend
+  resendApiKey: process.env.RESEND_API_KEY || '',
+  emailFrom: process.env.EMAIL_FROM || 'Livre compagnon <onboarding@resend.dev>',
   cookieSameSite: ['lax', 'strict', 'none'].includes(process.env.COOKIE_SAMESITE) ? process.env.COOKIE_SAMESITE : 'lax',
 };

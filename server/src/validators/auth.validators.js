@@ -44,3 +44,19 @@ export const changePasswordSchema = z
   });
 
 export const deleteAccountSchema = z.object({ password: z.string().min(1).max(72) }).strict();
+
+export const forgotPasswordSchema = z
+  .object({ email: z.string().trim().toLowerCase().email('Adresse email invalide.').max(254) })
+  .strict();
+
+export const resetPasswordSchema = z
+  .object({
+    token: z.string().regex(/^[0-9a-f]{64}$/, 'Lien invalide ou expiré.'),
+    password,
+    confirmPassword: z.string(),
+  })
+  .strict()
+  .refine((d) => d.password === d.confirmPassword, {
+    message: 'Les mots de passe ne correspondent pas.',
+    path: ['confirmPassword'],
+  });

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Button from '../../components/common/Button.jsx';
 import Card from '../../components/common/Card.jsx';
 import { Field } from '../../components/common/Field.jsx';
@@ -39,6 +39,9 @@ export default function AdminLoginPage() {
         <Field id="email" label="Email" type="email" autoComplete="email" error={errors.email?.message} {...register('email')} />
         <Field id="password" label="Mot de passe" type="password" autoComplete="current-password" error={errors.password?.message} {...register('password')} />
         <Button type="submit" disabled={isSubmitting} className="w-full">{isSubmitting ? 'Connexion…' : 'Se connecter'}</Button>
+        <p className="text-center text-sm">
+          <Link to="/mot-de-passe-oublie" className="font-bold text-brand-700 underline">Mot de passe oublié ?</Link>
+        </p>
       </Card>
     </div>
   );

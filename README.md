@@ -6,13 +6,13 @@ Application web qui prolonge un livre pour enfants : le lecteur scanne un **QR c
 
 ## Fonctionnalités
 
-**Lecteur** : accueil et présentation du livre sans compte · question du jour · page « Toutes les questions » (rattrapage des questions disponibles non faites) · correction par le serveur · explication · inscription / connexion / déconnexion · espace personnel · progression · historique paginé · profil (prénom, mot de passe) · suppression du compte.
+**Lecteur** : accueil et présentation du livre sans compte · question du jour · page « Toutes les questions » (rattrapage des questions disponibles non faites) · correction par le serveur · explication · inscription / connexion / déconnexion · mot de passe oublié (lien par email) · espace personnel · progression · historique paginé · profil (prénom, mot de passe) · suppression du compte.
 **Administrateur** : gestion des **livres avec import de l'image de couverture et QR code généré automatiquement** · tableau de bord (chiffres issus de la base) · CRUD des questions · publier / dépublier / planifier · liste des utilisateurs · réponses filtrables (lecteur, question, dates, résultat).
 
 ## Stack
 
 - **Frontend** (`client/`) : React 19, Vite, React Router, Tailwind CSS 4, Axios, React Hook Form, Zod, Lucide.
-- **Backend** (`server/`) : Node.js (≥ 20), Express 5, Mongoose, JWT (cookie HttpOnly), bcryptjs, Zod, Helmet, CORS, express-rate-limit, Morgan.
+- **Backend** (`server/`) : Node.js 22 (LTS), Express 5, Mongoose, JWT (cookie HttpOnly), bcryptjs, Zod, Helmet, CORS, express-rate-limit, Morgan.
 - **Données** : MongoDB (local en développement, Atlas en production).
 
 ## Architecture
@@ -29,7 +29,7 @@ Collections : `users`, `books`, `questions`, `answers` (pas de collection `daily
 
 ## Prérequis
 
-Node.js ≥ 20, npm, MongoDB en local (`mongod` démarré, `mongosh` pour vérifier).
+Node.js 22, npm, MongoDB en local (`mongod` démarré, `mongosh` pour vérifier).
 
 ## Installation
 
@@ -62,6 +62,8 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 | `COOKIE_SAMESITE` | `lax` (défaut) ou `none` si frontend et API sont sur des domaines différents |
 | `PUBLIC_BASE_URL` | adresse publique encodée dans les QR codes (défaut : `CLIENT_URL`) |
 | `AUTH_RATE_LIMIT` | tentatives d'authentification / 15 min / IP (défaut 10) |
+| `RESEND_API_KEY` | clé API [Resend](https://resend.com) pour les emails « mot de passe oublié » (sans clé : lien affiché dans la console en développement ; obligatoire en production) |
+| `EMAIL_FROM` | expéditeur, sur un domaine vérifié dans Resend (ex. `Livre compagnon <noreply@ton-domaine.com>`) |
 
 Frontend : `VITE_API_URL` (jamais de secret : visible dans le navigateur).
 
@@ -93,6 +95,15 @@ npm run dev:client           # Web : http://localhost:5173
 
 Administration : `http://localhost:5173/admin/connexion`.
 
+## Mot de passe oublié
+
+Lien « Mot de passe oublié ? » sur les pages de connexion (lecteur et administration) → `/mot-de-passe-oublie`.
+
+- Le serveur génère un jeton aléatoire (32 octets), n'en stocke que le **hash SHA-256**, valable **30 minutes** et **à usage unique**, et envoie par email un lien `CLIENT_URL/reinitialiser-mot-de-passe?token=…`.
+- La réponse est **identique** que l'adresse corresponde à un compte ou non, et l'email part sans attendre Resend : on ne peut pas savoir si un email est inscrit.
+- Après réinitialisation, **toutes les sessions** du compte sont fermées (sur tous les appareils).
+- **Resend** : créer un compte, vérifier un domaine (enregistrements DNS fournis par Resend), créer une clé API, puis définir `RESEND_API_KEY` et `EMAIL_FROM` sur Render. Sans domaine vérifié, l'adresse de test `onboarding@resend.dev` n'envoie qu'à l'email du compte Resend.
+
 ## Tests
 
 ```bash
@@ -101,6 +112,7 @@ npm test
 
 - `server/tests/smoke.test.js` et `dates.test.js` : sans base de données.
 - `server/tests/api.test.js` : intégration, **nécessite MongoDB local**. Utilise la base `livre_compagnon_test` (ou `MONGODB_URI_TEST`), la **vide au démarrage** et refuse de tourner si le nom ne se termine pas par `_test`. Sans MongoDB, ces tests sont ignorés (skip).
+- Intégration continue : `.github/workflows/ci.yml` lance tous ces tests (avec un MongoDB de test) à chaque push sur `main` et à chaque pull request.
 - `client` : `npm run test:smoke` (rendu serveur des pages + schémas de validation, sans navigateur).
 
 ## Build de production
@@ -169,18 +181,18 @@ Une collection Postman est fournie (`livre-compagnon.postman_collection.json`) ;
 
 ## Sécurité
 
-Mots de passe hachés (bcrypt, 12 tours) · session par cookie `HttpOnly` (`Secure` en production) · rôle relu en base à chaque requête · contrôle de l'en-tête `Origin` sur les requêtes qui modifient des données + `SameSite` · Helmet · CORS explicite · limitation des tentatives d'authentification · validation Zod stricte (champs inconnus refusés, pas de filtre MongoDB venant du client) · corps JSON limité à 10 ko · erreurs sans pile en production.
+Mots de passe hachés (bcrypt, 12 tours) · session par cookie `HttpOnly` (`Secure` en production), de même durée que le jeton (`JWT_EXPIRES_IN`) · changer ou réinitialiser son mot de passe ferme les sessions des autres appareils · rôle relu en base à chaque requête · contrôle de l'en-tête `Origin` sur les requêtes qui modifient des données + `SameSite` · Helmet · CORS explicite · limitation des tentatives d'authentification · validation Zod stricte (champs inconnus refusés, pas de filtre MongoDB venant du client) · corps JSON limité à 10 ko · erreurs sans pile en production · frontend : en-têtes de sécurité dans `client/vercel.json` (CSP, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`) ; si l'API change d'adresse, mettre à jour `connect-src` dans la CSP.
 
 ## Public enfant et données
 
-Données minimales (prénom, email, mot de passe haché, réponses). Pas de date de naissance, pas d'emails marketing dans ce MVP. La page `/confidentialite` est un **texte modèle à compléter et à faire valider** (éditeur, contact, durée de conservation, règles applicables aux mineurs dans le pays de déploiement).
+Données minimales (prénom, email, mot de passe haché, réponses). La police est servie par le site (pas de Google Fonts). Les emails de réinitialisation passent par Resend (sous-traitant à mentionner dans la page de confidentialité). Pas de date de naissance, pas d'emails marketing dans ce MVP. La page `/confidentialite` est un **texte modèle à compléter et à faire valider** (éditeur, contact, durée de conservation, règles applicables aux mineurs dans le pays de déploiement).
 
 ## Limites connues du MVP
 
 - Une seule image de couverture par livre ; pas de recadrage dans l'interface (le format portrait 3:4 est conseillé).
 - Questions à choix unique uniquement (la structure prévoit `type`).
 - Un seul livre mis en avant sur l'accueil (le premier livre publié) ; les autres livres sont accessibles par leur adresse `/livre/<slug>` (et leur QR code).
-- Pas de réinitialisation de mot de passe par email, pas de vérification d'email.
-- Le jeton JWT n'est pas révocable avant expiration (déconnexion = suppression du cookie).
+- Pas de vérification de l'adresse email à l'inscription.
+- La déconnexion supprime le cookie de l'appareil ; les autres sessions ne sont fermées qu'au changement de mot de passe.
 - Filtres de l'écran « Réponses » : 50 premiers lecteurs et questions dans les listes déroulantes.
 - Pas de tests de bout en bout dans un navigateur.

@@ -13,7 +13,7 @@ try {
   const { default: App } = await vite.ssrLoadModule('/src/App.jsx');
   const { AuthProvider } = await vite.ssrLoadModule('/src/context/AuthContext.jsx');
 
-  for (const path of ['/', '/connexion', '/inscription', '/confidentialite', '/question-du-jour', '/questions', '/questions/abc', '/espace', '/admin', '/admin/connexion', '/page-inexistante']) {
+  for (const path of ['/', '/connexion', '/inscription', '/confidentialite', '/question-du-jour', '/questions', '/questions/abc', '/espace', '/admin', '/admin/connexion', '/page-inexistante', '/mot-de-passe-oublie', '/reinitialiser-mot-de-passe']) {
     try {
       const html = renderToString(React.createElement(StaticRouter, { location: path }, React.createElement(AuthProvider, null, React.createElement(App))));
       check(`rendu ${path} (${html.length} octets)`, html.length > 100);
@@ -62,6 +62,19 @@ try {
   check('QuestionCard répondue : badge et lien vers le résultat', done.includes('Déjà répondue') && done.includes('/resultat/xyz') && !done.includes('Valider ma réponse'));
   const { questionService } = await vite.ssrLoadModule('/src/services/content.js');
   check('questionService.list et get existent', typeof questionService.list === 'function' && typeof questionService.get === 'function');
+
+  // Mot de passe oublié
+  const page = (path) => renderToString(React.createElement(StaticRouter, { location: path }, React.createElement(AuthProvider, null, React.createElement(App))));
+  check('connexion : lien « Mot de passe oublié ? »', page('/connexion').includes('href="/mot-de-passe-oublie"'));
+  check('administration : lien « Mot de passe oublié ? »', page('/admin/connexion').includes('href="/mot-de-passe-oublie"'));
+  check('mot de passe oublié : champ email et bouton', page('/mot-de-passe-oublie').includes('id="email"') && page('/mot-de-passe-oublie').includes('Recevoir le lien'));
+  check('réinitialisation sans jeton : message « Lien incomplet »', page('/reinitialiser-mot-de-passe').includes('Lien incomplet'));
+  const withToken = page(`/reinitialiser-mot-de-passe?token=${'a'.repeat(64)}`);
+  check('réinitialisation avec jeton : deux champs mot de passe', withToken.includes('id="password"') && withToken.includes('id="confirmPassword"'));
+  check('forgotPasswordSchema refuse un email invalide', !s.forgotPasswordSchema.safeParse({ email: 'abc' }).success);
+  check('resetPasswordSchema : règles du mot de passe et confirmation', s.resetPasswordSchema.safeParse({ password: 'nouveau123', confirmPassword: 'nouveau123' }).success && !s.resetPasswordSchema.safeParse({ password: 'nouveau123', confirmPassword: 'autre1234' }).success && !s.resetPasswordSchema.safeParse({ password: 'court', confirmPassword: 'court' }).success);
+  const html = await import('node:fs').then((fs) => fs.readFileSync('index.html', 'utf8'));
+  check('index.html : aucune police chargée depuis Google', !html.includes('googleapis') && !html.includes('gstatic'));
 
   const { zodResolver } = await import('@hookform/resolvers/zod');
   const res = await zodResolver(s.loginSchema)({ email: 'pas-un-email', password: '' }, undefined, { fields: {}, shouldUseNativeValidation: false });
