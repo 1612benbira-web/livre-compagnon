@@ -81,6 +81,12 @@ before(async () => {
     qDraft: await mk('Question brouillon ?', 'draft', today),
     qFuture: await mk('Question future ?', 'published', day(1)),
   };
+  // Livre en préparation (non publié) : ses questions, même publiées et datées, restent invisibles
+  ctx.hiddenBook = await Book.create({ title: 'Livre caché', slug: 'livre-cache', isPublished: false });
+  ctx.qHidden = await Question.create({
+    book: ctx.hiddenBook._id, question: 'Question d\'un livre non publié ?', answers: ['A', 'B', 'C', 'D'],
+    correctAnswer: 0, status: 'published', publicationDate: day(-1),
+  });
 
   await new Promise((resolve) => { server = app.listen(0, resolve); });
   base = `http://127.0.0.1:${server.address().port}/api`;
@@ -139,6 +145,16 @@ test('visiteur : seules les questions disponibles sont listées, sans bonne rép
 test('brouillon et question future introuvables pour un lecteur', { skip }, async () => {
   assert.equal((await client().get(`/questions/${ctx.qDraft._id}`)).status, 404);
   assert.equal((await client().get(`/questions/${ctx.qFuture._id}`)).status, 404);
+});
+
+test('livre non publié : ses questions ne sont ni listées, ni lisibles, ni jouables', { skip }, async () => {
+  const list = await client().get('/questions');
+  assert.equal(list.body.data.questions.some((q) => q.question === 'Question d\'un livre non publié ?'), false);
+  const filtered = await client().get(`/questions?book=${ctx.hiddenBook._id}`);
+  assert.equal(filtered.body.data.questions.length, 0);
+  assert.equal((await client().get(`/questions/${ctx.qHidden._id}`)).status, 404);
+  // Lecteur connecté (Awa) : la réponse est refusée et rien n'est enregistré
+  assert.equal((await reader.post('/answers', { questionId: ctx.qHidden._id.toString(), selectedAnswer: 0 })).status, 404);
 });
 
 test('question du jour : la question datée d\'aujourd\'hui, sans bonne réponse', { skip }, async () => {

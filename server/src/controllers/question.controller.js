@@ -26,9 +26,13 @@ export const listQuestions = asyncHandler(async (req, res) => {
   const { page, limit, status, book, scope } = req.validated.query;
   const admin = isAdmin(req) && scope !== 'public';
   // Les filtres sont construits côté serveur : jamais de filtre Mongo fourni par le client
-  const filter = admin ? {} : availableFilter();
+  const filter = admin ? {} : await availableFilter();
   if (admin && status) filter.status = status;
-  if (book) filter.book = book;
+  // Lecteur : le filtre "livre" s'ajoute à la restriction aux livres publiés, sans la remplacer
+  if (book) {
+    if (admin) filter.book = book;
+    else filter.$and = [{ book }];
+  }
 
   const [total, docs] = await Promise.all([
     Question.countDocuments(filter),
@@ -87,7 +91,10 @@ export const getQuestion = asyncHandler(async (req, res) => {
   }
 
   const available =
-    question.status === 'published' && question.publicationDate && question.publicationDate <= todayUTCDate();
+    question.status === 'published' &&
+    question.publicationDate &&
+    question.publicationDate <= todayUTCDate() &&
+    (await Book.exists({ _id: question.book, isPublished: true }));
   if (!available) throw new ApiError(404, 'Question introuvable.');
 
   let answer = null;
