@@ -132,3 +132,25 @@ test('profil, mot de passe et suppression de compte sans authentification → 40
   assert.equal((await send('DELETE', '/auth/account')).status, 401);
 });
 
+
+test('mot de passe oublié / réinitialisation : validation stricte sans base de données', async () => {
+  assert.equal((await post('/auth/forgot-password', {})).status, 400);
+  assert.equal((await post('/auth/forgot-password', { email: 'a@b.co', extra: 1 })).status, 400);
+  assert.equal((await post('/auth/reset-password', { token: 'abc', password: 'motdepasse1', confirmPassword: 'motdepasse1' })).status, 400);
+});
+
+test('email de réinitialisation : prénom échappé dans le HTML, lien présent', async () => {
+  const { resetPasswordEmail } = await import('../src/services/mail.service.js');
+  const m = resetPasswordEmail({ firstName: '<b>Awa</b>', url: 'https://x.test/reinitialiser-mot-de-passe?token=ab', minutes: 30 });
+  assert.equal(m.html.includes('<b>Awa</b>'), false);
+  assert.ok(m.html.includes('&lt;b&gt;Awa&lt;/b&gt;'));
+  assert.ok(m.text.includes('https://x.test/reinitialiser-mot-de-passe?token=ab'));
+});
+
+test('isRevoked : un jeton d\'une ancienne version de session est refusé', async () => {
+  const { isRevoked } = await import('../src/services/token.service.js');
+  assert.equal(isRevoked({ v: 0 }, { tokenVersion: 0 }), false);
+  assert.equal(isRevoked({}, { tokenVersion: 0 }), false); // jetons émis avant la fonctionnalité
+  assert.equal(isRevoked({}, {}), false);
+  assert.equal(isRevoked({ v: 1 }, { tokenVersion: 2 }), true);
+});

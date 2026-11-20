@@ -7,5 +7,7 @@ export const authService = {
   logout: () => unwrap(api.post('/auth/logout')),
   updateProfile: (body) => unwrap(api.patch('/auth/profile', body)),
   changePassword: (body) => unwrap(api.put('/auth/password', body)),
+  forgotPassword: (email) => api.post('/auth/forgot-password', { email }).then((res) => res.data.message),
+  resetPassword: (body) => api.post('/auth/reset-password', body).then((res) => res.data.message),
   deleteAccount: (password) => unwrap(api.delete('/auth/account', { data: { password } })),
 };

@@ -63,3 +63,14 @@ export const bookFormSchema = z.object({
     .refine((v) => v === '' || v.startsWith('/') || v.startsWith('https://'), 'Un chemin commençant par / ou une URL https.'),
   isPublished: z.boolean(),
 });
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().trim().min(1, 'Ton email est nécessaire.').email('Adresse email invalide.'),
+});
+
+export const resetPasswordSchema = z
+  .object({
+    password: passwordRule,
+    confirmPassword: z.string().min(1, 'Confirme ton nouveau mot de passe.'),
+  })
+  .refine((d) => d.password === d.confirmPassword, { message: 'Les mots de passe ne correspondent pas.', path: ['confirmPassword'] });

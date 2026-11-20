@@ -299,6 +299,85 @@ test('mot de passe : mauvais mot de passe actuel → 401, puis changement valide
   assert.equal((await client().post('/auth/login', { email: 'moussa@test.local', password: 'nouveaumdp3' })).status, 200);
 });
 
+test('changement de mot de passe : la session courante reste ouverte, les autres sont fermées', { skip }, async () => {
+  const other = client(); // second appareil
+  assert.equal((await other.post('/auth/login', { email: 'moussa@test.local', password: 'nouveaumdp3' })).status, 200);
+  assert.equal((await other.get('/auth/me')).status, 200);
+  const r = await reader2.put('/auth/password', { currentPassword: 'nouveaumdp3', newPassword: 'nouveaumdp4', confirmPassword: 'nouveaumdp4' });
+  assert.equal(r.status, 200);
+  assert.equal((await reader2.get('/auth/me')).status, 200); // cookie renouvelé
+  assert.equal((await other.get('/auth/me')).status, 401); // ancien jeton refusé
+});
+
+test('cookie de session : durée alignée sur JWT_EXPIRES_IN (1 jour par défaut)', { skip }, async () => {
+  const res = await fetch(base + '/auth/login', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'moussa@test.local', password: 'nouveaumdp4' }),
+  });
+  const cookie = res.headers.getSetCookie().find((c) => c.startsWith('token='));
+  const maxAge = Number(/Max-Age=(\d+)/.exec(cookie)[1]);
+  assert.ok(maxAge > 86390 && maxAge <= 86400, `Max-Age inattendu : ${maxAge}`);
+});
+
+test('mot de passe oublié : même réponse pour un email inconnu, aucun email envoyé', { skip }, async () => {
+  const { sentEmails } = await import('../src/services/mail.service.js');
+  sentEmails.length = 0;
+  const r = await client().post('/auth/forgot-password', { email: 'inconnu@test.local' });
+  assert.equal(r.status, 200);
+  assert.match(r.body.message, /Si un compte existe/);
+  assert.equal(sentEmails.length, 0);
+  assert.equal((await client().post('/auth/forgot-password', { email: 'pas-un-email' })).status, 400);
+});
+
+test('mot de passe oublié : lien unique, sessions fermées, nouveau mot de passe actif', { skip }, async () => {
+  const { sentEmails } = await import('../src/services/mail.service.js');
+  sentEmails.length = 0;
+  const device = client();
+  await device.post('/auth/login', { email: 'moussa@test.local', password: 'nouveaumdp4' });
+
+  const r = await client().post('/auth/forgot-password', { email: 'Moussa@Test.local' });
+  assert.equal(r.status, 200);
+  assert.equal(sentEmails.length, 1);
+  assert.equal(sentEmails[0].to, 'moussa@test.local');
+  const token = /token=([0-9a-f]{64})/.exec(sentEmails[0].text)[1];
+  assert.ok(sentEmails[0].text.startsWith('Bonjour Moussa D'));
+
+  const { User } = await import('../src/models/User.js');
+  const stored = await User.findOne({ email: 'moussa@test.local' }).select('+resetTokenHash');
+  assert.notEqual(stored.resetTokenHash, token); // seul le hash est stocké
+  const me = await device.get('/auth/me');
+  assert.equal('resetTokenHash' in me.body.data.user, false);
+  assert.equal('tokenVersion' in me.body.data.user, false);
+
+  const reset = (t, pwd = 'reinit123', confirm = pwd) =>
+    client().post('/auth/reset-password', { token: t, password: pwd, confirmPassword: confirm });
+  assert.equal((await reset('0'.repeat(64))).status, 400); // jeton inconnu
+  assert.equal((await reset(token, 'faible')).status, 400); // mot de passe trop faible
+  assert.equal((await reset(token, 'reinit123', 'autre1234')).status, 400); // confirmation différente
+  const ok = await reset(token);
+  assert.equal(ok.status, 200);
+  assert.equal((await reset(token, 'encore1234')).status, 400); // usage unique
+
+  assert.equal((await device.get('/auth/me')).status, 401); // ancienne session fermée
+  assert.equal((await client().post('/auth/login', { email: 'moussa@test.local', password: 'nouveaumdp4' })).status, 401);
+  assert.equal((await client().post('/auth/login', { email: 'moussa@test.local', password: 'reinit123' })).status, 200);
+  // reader2 (Moussa) a aussi été déconnecté : on le reconnecte pour les tests suivants
+  assert.equal((await reader2.get('/auth/me')).status, 401);
+  assert.equal((await reader2.post('/auth/login', { email: 'moussa@test.local', password: 'reinit123' })).status, 200);
+});
+
+test('mot de passe oublié : un lien expiré est refusé', { skip }, async () => {
+  const { sentEmails } = await import('../src/services/mail.service.js');
+  const { User } = await import('../src/models/User.js');
+  sentEmails.length = 0;
+  await client().post('/auth/forgot-password', { email: 'moussa@test.local' });
+  const token = /token=([0-9a-f]{64})/.exec(sentEmails[0].text)[1];
+  await User.updateOne({ email: 'moussa@test.local' }, { resetTokenExpires: new Date(Date.now() - 1000) });
+  const r = await client().post('/auth/reset-password', { token, password: 'expire123', confirmPassword: 'expire123' });
+  assert.equal(r.status, 400);
+  assert.match(r.body.message, /expiré/);
+});
+
 test('administration : dashboard, utilisateurs et réponses calculés depuis la base', { skip }, async () => {
   const d = await admin.get('/admin/dashboard');
   assert.equal(d.status, 200);

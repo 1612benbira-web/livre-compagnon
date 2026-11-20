@@ -33,6 +33,9 @@ export default function LoginPage() {
       {serverError && <Alert>{serverError}</Alert>}
       <Field id="email" label="Email" type="email" autoComplete="email" error={errors.email?.message} {...register('email')} />
       <Field id="password" label="Mot de passe" type="password" autoComplete="current-password" error={errors.password?.message} {...register('password')} />
+      <p className="-mt-2 text-right text-sm">
+        <Link to="/mot-de-passe-oublie" className="font-bold text-brand-700 underline">Mot de passe oublié ?</Link>
+      </p>
       <Button type="submit" disabled={isSubmitting} className="w-full">{isSubmitting ? 'Connexion…' : 'Se connecter'}</Button>
       <p className="text-center">Pas encore de compte ? <Link to="/inscription" state={{ from }} className="font-extrabold text-brand-700 underline">Créer un compte</Link></p>
     </Card>
