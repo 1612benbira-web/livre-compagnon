@@ -23,7 +23,7 @@ const toResult = (answer, question) => ({
 export const createAnswer = asyncHandler(async (req, res) => {
   const { questionId, selectedAnswer } = req.body;
 
-  const question = await Question.findOne({ _id: questionId, ...availableFilter() });
+  const question = await Question.findOne({ _id: questionId, ...(await availableFilter()) });
   if (!question) throw new ApiError(404, 'Question introuvable ou non disponible.');
   if (selectedAnswer >= question.answers.length) {
     throw new ApiError(400, 'Proposition invalide.', [{ field: 'selectedAnswer', message: 'Proposition invalide.' }]);
@@ -86,7 +86,7 @@ export const getProgress = asyncHandler(async (req, res) => {
   ]);
   const answered = agg?.answered ?? 0;
   const correct = agg?.correct ?? 0;
-  const availableQuestions = await Question.countDocuments(availableFilter());
+  const availableQuestions = await Question.countDocuments(await availableFilter());
 
   return ok(res, {
     answered,

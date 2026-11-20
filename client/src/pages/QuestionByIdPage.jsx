@@ -9,7 +9,7 @@ import { formatDateKey, toDateInput } from '../utils/format.js';
 export default function QuestionByIdPage() {
   const { id } = useParams();
   const { user } = useAuth();
-  const { data, loading, error, reload } = useFetch(() => questionService.get(id), [id, user?.id]);
+  const { data, loading, error, reload } = useFetch(() => questionService.get(id), [id, user?._id]);
   if (loading) return <Spinner />;
   if (error) return <ErrorMessage message={error} onRetry={reload} />;
 

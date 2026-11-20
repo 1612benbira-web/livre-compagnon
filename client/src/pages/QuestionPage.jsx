@@ -15,8 +15,8 @@ export default function QuestionPage() {
   const [params] = useSearchParams();
   const book = params.get('book') || undefined;
 
-  const { data, loading, error, reload } = useFetch(() => questionService.today(book), [book, user?.id]);
-  const progress = useFetch(() => (user ? answerService.progress() : Promise.resolve(null)), [user?.id]);
+  const { data, loading, error, reload } = useFetch(() => questionService.today(book), [book, user?._id]);
+  const progress = useFetch(() => (user ? answerService.progress() : Promise.resolve(null)), [user?._id]);
 
   if (loading) return <Spinner label="Recherche de la question du jour…" />;
   if (error) return <ErrorMessage message={error} onRetry={reload} />;

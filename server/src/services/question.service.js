@@ -4,10 +4,12 @@ import { todayUTCDate } from '../utils/dates.js';
 
 const OBJECT_ID = /^[0-9a-fA-F]{24}$/;
 
-// Une question est disponible si elle est publiée et si sa date de publication est atteinte
-export const availableFilter = (now = new Date()) => ({
+// Une question est disponible si elle est publiée, si sa date de publication est atteinte
+// et si son livre est lui-même publié (un livre en préparation ne doit rien exposer aux lecteurs).
+export const availableFilter = async (now = new Date()) => ({
   status: 'published',
   publicationDate: { $lte: todayUTCDate(now) },
+  book: { $in: await Book.distinct('_id', { isPublished: true }) },
 });
 
 export const findBookByIdOrSlug = (idOrSlug) =>
